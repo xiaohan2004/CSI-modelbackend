@@ -1,0 +1,6 @@
+/0510
+/saved_csv
+/saved_models
+/**/*.csv
+/**/*.pth
+/**/__pycache__
