@@ -11,6 +11,7 @@ from signalProcessorInstance import *
 from signalProducer import *
 import streamlit_extra_global_data
 from support_web import find_implementations
+from tmp.train_model import get_signal_processor
 
 
 def check_signal_processing_json_data(json_data):
@@ -60,6 +61,55 @@ def create_signal_csv_writer(file_path):
 
     return writer
 
+
+def parse_complex_string(s):
+    """安全解析复数字符串"""
+    try:
+        if s == '0j':
+            return 0 + 0j
+        return complex(s)
+    except (ValueError, SyntaxError):
+        return 0 + 0j  # 解析失败时返回0
+
+
+def process_csi_file(file_path, signal_process_method):
+    """处理CSI文件的核心函数（针对特定格式优化）"""
+    try:
+        # 读取文件数据
+        if file_path.endswith('.csv'):
+            # 直接读取整个文件内容（假设每行是一个完整的CSI样本）
+            with open(file_path, 'r') as f:
+                lines = f.readlines()
+
+            # 解析每行的CSI数据
+            csi_data = []
+            for line in lines:
+                # 移除换行符和空格，分割字符串
+                items = line.strip().replace(' ', '').split(',')
+                # 解析每个复数
+                complex_row = [parse_complex_string(item) for item in items]
+                csi_data.append(complex_row)
+
+            csi_matrix = np.array(csi_data, dtype=np.complex64)
+        else:
+            raise ValueError("仅支持CSV格式文件")
+
+        # 验证数据维度
+        if csi_matrix.shape[1] != 64:
+            raise ValueError(f"CSI数据应包含64个子载波，实际得到{csi_matrix.shape[1]}个")
+
+        # 获取信号处理器
+        signal_processor = get_signal_processor(signal_process_method)
+        signal_preprocess = support_web.single_signal_preprocess_to_matrix_preprocess(
+            signal_processor.process
+        )
+
+        # 处理数据（取绝对值或其他处理）
+        processed_matrix = signal_preprocess(np.abs(csi_matrix))  # 根据需求可能需要修改
+
+        return processed_matrix
+    except Exception as e:
+        raise ValueError(f"文件处理失败: {str(e)}")
 
 def handle_signal_producer(signal_producer,
         signal_process_method,
