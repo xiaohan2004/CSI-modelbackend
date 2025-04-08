@@ -4,3 +4,5 @@
 /**/*.csv
 /**/*.pth
 /**/__pycache__
+db_config.ini
+*.zip
