@@ -65,15 +65,19 @@ class Predictor:
 
     def read_csi_from_file(self, file_path):
         """从CSV文件读取CSI数据"""
+        import re
+        import numpy as np
         csi_data = []
         with open(file_path, "r") as f:
             for line in f:
                 line = line.strip()
                 if line:  # 跳过空行
-                    # 解析复数字符串，格式如："1.23+4.56j"
+                    # 去除形如 "1.23+-4.56j" 中的多余 +
+                    line = re.sub(r'\+\-', '-', line)
                     complex_numbers = [complex(x) for x in line.split(",")]
                     csi_data.append(complex_numbers)
         return np.array(csi_data)
+
 
     def predict(self, file_path):
         """预测指定文件中的CSI数据"""

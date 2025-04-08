@@ -12,6 +12,7 @@ from signalProducer import *
 import streamlit_extra_global_data
 from support_web import find_implementations
 from tmp.train_model import get_signal_processor
+import re
 
 
 def check_signal_processing_json_data(json_data):
@@ -63,13 +64,13 @@ def create_signal_csv_writer(file_path):
 
 
 def parse_complex_string(s):
-    """安全解析复数字符串"""
+    """安全解析复数字符串，修复不合法格式如 +-"""
     try:
-        if s == '0j':
-            return 0 + 0j
+        s = re.sub(r'\+\-', '-', s)  # 修复如 1.23+-4.56j -> 1.23-4.56j
         return complex(s)
-    except (ValueError, SyntaxError):
-        return 0 + 0j  # 解析失败时返回0
+    except Exception as e:
+        print(f"[错误] 无法解析复数字符串: '{s}'，原因: {e}")
+        return None  # 返回 None 以标识解析失败
 
 
 def process_csi_file(file_path, signal_process_method):
@@ -83,12 +84,25 @@ def process_csi_file(file_path, signal_process_method):
 
             # 解析每行的CSI数据
             csi_data = []
-            for line in lines:
-                # 移除换行符和空格，分割字符串
-                items = line.strip().replace(' ', '').split(',')
-                # 解析每个复数
+            expected_length = 64
+
+            for i, line in enumerate(lines):
+                line = line.strip()
+                if not line:  # 空行跳过
+                    continue
+
+                items = line.replace(' ', '').split(',')
                 complex_row = [parse_complex_string(item) for item in items]
+
+                if None in complex_row or len(complex_row) != expected_length:
+                    print(f"[警告] 第{i+1}行跳过。长度={len(complex_row)}，内容：{line[:100]}...")
+                    continue
+
                 csi_data.append(complex_row)
+
+
+            if not csi_data:
+                raise ValueError("没有有效的CSI数据可供处理")
 
             csi_matrix = np.array(csi_data, dtype=np.complex64)
         else:
