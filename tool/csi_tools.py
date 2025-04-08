@@ -90,9 +90,12 @@ def load_data_from_csv(path_0 = r'tool/label/label_0.csv',path_1 = r'tool/label/
         print(f"数据加载出错: {e}")
         return None, None
 
+CACHE_SIZE = 100  # 假设 CACHE_SIZE 是一个全局变量
+
 def saved_csi_data_with_label_to_different_file(csi_with_label, clean=True,
                                                 path_0 = r'tool/label/label_0.csv',
                                                 path_1 = r'tool/label/label_1.csv'):
+    success = True  # 初始化标志变量为 True
     try:
         # 先清空需要保存的文件
         if clean:
@@ -101,16 +104,20 @@ def saved_csi_data_with_label_to_different_file(csi_with_label, clean=True,
                     f.write('')
             except FileNotFoundError:
                 print(f"文件 '{path_0}' 未找到。")
+                success = False  # 发生异常，标志变量设为 False
             except PermissionError:
                 print(f"没有权限清空文件 '{path_0}'。")
+                success = False  # 发生异常，标志变量设为 False
 
             try:
                 with open(path_1, 'w') as f:
                     f.write('')
             except FileNotFoundError:
                 print(f"文件 '{path_1}' 未找到。")
+                success = False  # 发生异常，标志变量设为 False
             except PermissionError:
                 print(f"没有权限清空文件 '{path_1}'。")
+                success = False  # 发生异常，标志变量设为 False
 
         cache = []
         for csi_data, label in zip(csi_with_label["csi_data"], csi_with_label["label"]):
@@ -126,16 +133,20 @@ def saved_csi_data_with_label_to_different_file(csi_with_label, clean=True,
                                 f.write(csi + '\n')
                         except FileNotFoundError:
                             print(f"文件 '{path_0}' 未找到，无法写入数据。")
+                            success = False  # 发生异常，标志变量设为 False
                         except PermissionError:
                             print(f"没有权限写入文件 '{path_0}'。")
+                            success = False  # 发生异常，标志变量设为 False
                     elif lab == 1:
                         try:
                             with open(path_1, 'a') as f:
                                 f.write(csi + '\n')
                         except FileNotFoundError:
                             print(f"文件 '{path_1}' 未找到，无法写入数据。")
+                            success = False  # 发生异常，标志变量设为 False
                         except PermissionError:
                             print(f"没有权限写入文件 '{path_1}'。")
+                            success = False  # 发生异常，标志变量设为 False
                 cache = []
         # 处理剩余的缓存数据
         for csi, lab in cache:
@@ -145,18 +156,26 @@ def saved_csi_data_with_label_to_different_file(csi_with_label, clean=True,
                         f.write(csi + '\n')
                 except FileNotFoundError:
                     print(f"文件 '{path_0}' 未找到，无法写入数据。")
+                    success = False  # 发生异常，标志变量设为 False
                 except PermissionError:
                     print(f"没有权限写入文件 '{path_0}'。")
+                    success = False  # 发生异常，标志变量设为 False
             elif lab == 1:
                 try:
                     with open(path_1, 'a') as f:
                         f.write(csi + '\n')
                 except FileNotFoundError:
                     print(f"文件 '{path_1}' 未找到，无法写入数据。")
+                    success = False  # 发生异常，标志变量设为 False
                 except PermissionError:
                     print(f"没有权限写入文件 '{path_1}'。")
+                    success = False  # 发生异常，标志变量设为 False
     except Exception as e:
         print(f"发生未知异常: {e}")
+        success = False  # 发生异常，标志变量设为 False
+
+    return success
+
 
 
 def handle_raw_csi_data_to_complex(csi_data):
