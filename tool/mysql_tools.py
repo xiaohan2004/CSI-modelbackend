@@ -41,7 +41,9 @@ class MySQLTools:
                 possible_paths = [
                     "config/db_config.ini",  # 项目根目录下的config文件夹
                     "db_config.ini",  # 项目根目录
-                    os.path.join(os.path.dirname(__file__), "db_config.ini"),  # 当前脚本同目录
+                    os.path.join(
+                        os.path.dirname(__file__), "db_config.ini"
+                    ),  # 当前脚本同目录
                 ]
 
                 for path in possible_paths:
@@ -119,6 +121,10 @@ class MySQLTools:
                     print("达到最大重试次数，连接失败")
                     raise
 
+    def is_connected(self):
+        """检查数据库连接是否有效"""
+        return self.connection is not None and self.connection.is_connected()
+
     def _ensure_database_exists(self):
         """确保数据库存在，如果不存在则创建"""
         try:
@@ -132,8 +138,10 @@ class MySQLTools:
     def _ensure_connection(self):
         """确保数据库连接是活跃的"""
         try:
-            if self.connection is None or not self.connection.is_connected():
-                self.connect()
+            if not self.is_connected():
+                print("数据库连接已断开，尝试重新连接...")
+                return self.connect()
+            return True
         except Error as e:
             print(f"重新连接数据库时出错: {e}")
             raise
@@ -161,9 +169,13 @@ class MySQLTools:
 
     def close(self):
         """关闭数据库连接"""
-        if self.connection and self.connection.is_connected():
+        if self.is_connected():
             self.connection.close()
             print("数据库连接已关闭")
+
+    def close_connection(self):
+        """关闭数据库连接（兼容方法）"""
+        self.close()
 
     def __del__(self):
         """析构函数，确保连接被正确关闭"""
@@ -189,7 +201,9 @@ class MySQLTools:
             raise
 
     def insert_record(self, uuid, model_name, model_saved_path):
+        """插入记录"""
         try:
+            self._ensure_connection()
             cursor = self.connection.cursor()
             insert_query = f"""
             INSERT INTO {self.database}.csi_model_saved_table (uuid, model_name, model_saved_path)
@@ -197,24 +211,32 @@ class MySQLTools:
             """
             cursor.execute(insert_query, (uuid, model_name, model_saved_path))
             self.connection.commit()
+            cursor.close()
             print("Record inserted successfully.")
         except Error as e:
             print(f"Error while inserting record: {e}")
+            raise
 
     def delete_record(self, uuid):
+        """删除记录"""
         try:
+            self._ensure_connection()
             cursor = self.connection.cursor()
             delete_query = (
                 f"DELETE FROM {self.database}.csi_model_saved_table WHERE uuid = %s"
             )
             cursor.execute(delete_query, (uuid,))
             self.connection.commit()
+            cursor.close()
             print("Record deleted successfully.")
         except Error as e:
             print(f"Error while deleting record: {e}")
+            raise
 
     def update_record(self, uuid, model_name=None, model_saved_path=None):
+        """更新记录"""
         try:
+            self._ensure_connection()
             update_query = f"UPDATE {self.database}.csi_model_saved_table SET "
             values = []
             if model_name:
@@ -229,12 +251,16 @@ class MySQLTools:
             cursor = self.connection.cursor()
             cursor.execute(update_query, tuple(values))
             self.connection.commit()
+            cursor.close()
             print("Record updated successfully.")
         except Error as e:
             print(f"Error while updating record: {e}")
+            raise
 
     def select_record(self, uuid=None):
+        """查询记录"""
         try:
+            self._ensure_connection()
             cursor = self.connection.cursor(dictionary=True)
             if uuid:
                 select_query = f"SELECT * FROM {self.database}.csi_model_saved_table WHERE uuid = %s"
@@ -243,6 +269,7 @@ class MySQLTools:
                 select_query = f"SELECT * FROM {self.database}.csi_model_saved_table"
                 cursor.execute(select_query)
             records = cursor.fetchall()
+            cursor.close()
             return records
         except Error as e:
             print(f"Error while selecting record: {e}")
